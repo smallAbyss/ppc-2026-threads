@@ -118,7 +118,7 @@ class SparseMatrix {
     return rows_;
   }
 
-  std::vector<double> GetVal() {
+  const std::vector<double>& GetVal() const {
     return value_;
   }
 
@@ -145,7 +145,7 @@ class SparseMatrix {
     }
     return 0.0;
   }
-  void Sparse(std::vector<double> matrix) {
+  void Sparse(const std::vector<double>& matrix) {
     col_index_.push_back(0);
     bool flag = false;
     for (unsigned j = 0; j < cols_; j++) {
@@ -205,6 +205,10 @@ class SparseMatrix {
     }
     unsigned n = 0;
     file >> n >> rows_ >> cols_;
+
+    value_.clear();
+    row_.clear();
+    col_index_.clear();
 
     double tmp_val = 0;
     for (unsigned i = 0; i < n; i++) {
