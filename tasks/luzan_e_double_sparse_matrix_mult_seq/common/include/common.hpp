@@ -118,7 +118,7 @@ class SparseMatrix {
     return rows_;
   }
 
-  const std::vector<double>& GetVal() const {
+  const std::vector<double> &GetVal() const {
     return value_;
   }
 
@@ -145,7 +145,7 @@ class SparseMatrix {
     }
     return 0.0;
   }
-  void Sparse(const std::vector<double>& matrix) {
+  void Sparse(const std::vector<double> &matrix) {
     col_index_.push_back(0);
     bool flag = false;
     for (unsigned j = 0; j < cols_; j++) {
