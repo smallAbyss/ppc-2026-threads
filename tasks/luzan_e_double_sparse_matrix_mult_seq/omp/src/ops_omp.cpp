@@ -9,13 +9,18 @@ namespace luzan_e_double_sparse_matrix_mult_seq {
 SparseMatrix SparseMatrix::CalcProdOMP(const SparseMatrix &b) const {
   SparseMatrix c(rows_, b.cols_);
 
-  /// tmp storage
   std::vector<std::vector<double>> values_per_col(b.cols_);
   std::vector<std::vector<unsigned>> rows_per_col(b.cols_);
 
-#pragma omp parallel for shared(b, values_per_col, rows_per_col, kEPS) schedule(static) default(none) num_threads(2)
+  int nthreads = omp_get_max_threads();
+  std::vector<std::vector<double>> tmp_cols(nthreads, std::vector<double>(rows_, 0.0));
+
+#pragma omp parallel for schedule(static) default(none) shared(b, values_per_col, rows_per_col, kEPS, tmp_cols)
   for (int b_col = 0; b_col < static_cast<int>(b.cols_); b_col++) {
-    std::vector<double> tmp_col(rows_, 0.0);
+    int tid = omp_get_thread_num();
+    std::vector<double> &tmp_col = tmp_cols[tid];
+
+    std::fill(tmp_col.begin(), tmp_col.end(), 0.0);
 
     unsigned b_rows_start = b.col_index_[b_col];
     unsigned b_rows_end = b.col_index_[b_col + 1];
