@@ -46,8 +46,9 @@ TEST_P(LuzanEDoubleSparseMatrixMultSeqPerfTestThreads, RunPerfModes) {
 
 namespace {
 
-const auto kAllPerfTasks = ppc::util::MakeAllPerfTasks<InType, LuzanEDoubleSparseMatrixMultSeq, LuzanEDoubleSparseMatrixMultTBB>(
-    PPC_SETTINGS_luzan_e_double_sparse_matrix_mult);
+const auto kAllPerfTasks =
+    ppc::util::MakeAllPerfTasks<InType, LuzanEDoubleSparseMatrixMultSeq, LuzanEDoubleSparseMatrixMultTBB>(
+        PPC_SETTINGS_luzan_e_double_sparse_matrix_mult);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
 
