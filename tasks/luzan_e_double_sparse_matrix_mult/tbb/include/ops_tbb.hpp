@@ -13,6 +13,13 @@ class LuzanEDoubleSparseMatrixMultTBB : public BaseTask {
 
   SparseMatrix CalcProdTBB(const SparseMatrix &a, const SparseMatrix &b);
 
+  void MultiplyColumn(const SparseMatrix &a, const SparseMatrix &b, unsigned b_col, std::vector<double> &tmp_col);
+
+  void CompressColumn(const std::vector<double> &tmp_col, std::vector<double> &values, std::vector<unsigned> &rows);
+
+  void BuildResult(SparseMatrix &c, const std::vector<std::vector<double>> &values_per_col,
+                   const std::vector<std::vector<unsigned>> &rows_per_col);
+
  private:
   bool ValidationImpl() override;
   bool PreProcessingImpl() override;
