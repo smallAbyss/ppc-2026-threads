@@ -72,11 +72,10 @@ const std::array<TestType, 6> kTestParam = {std::make_tuple("test_1.txt", "01"),
                                             std::make_tuple("test_3.txt", "03"), std::make_tuple("test_4.txt", "04"),
                                             std::make_tuple("test_5.txt", "05"), std::make_tuple("test_6.txt", "06")};
 
-const auto kTestTasksList = std::tuple_cat(
-  ppc::util::AddFuncTask<LuzanEDoubleSparseMatrixMultSeq, InType>(
-    kTestParam, PPC_SETTINGS_luzan_e_double_sparse_matrix_mult),
-  ppc::util::AddFuncTask<LuzanEDoubleSparseMatrixMultTBB, InType>(
-    kTestParam, PPC_SETTINGS_luzan_e_double_sparse_matrix_mult));
+const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<LuzanEDoubleSparseMatrixMultSeq, InType>(
+                                               kTestParam, PPC_SETTINGS_luzan_e_double_sparse_matrix_mult),
+                                           ppc::util::AddFuncTask<LuzanEDoubleSparseMatrixMultTBB, InType>(
+                                               kTestParam, PPC_SETTINGS_luzan_e_double_sparse_matrix_mult));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 
