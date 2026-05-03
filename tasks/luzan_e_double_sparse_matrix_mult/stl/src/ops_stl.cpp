@@ -14,7 +14,7 @@ SparseMatrix LuzanEDoubleSparseMatrixMultStl::CalcProdSTL(const SparseMatrix &a,
   std::vector<std::vector<double>> values_per_col(b.cols);
   std::vector<std::vector<unsigned>> rows_per_col(b.cols);
 
-  const unsigned num_threads = 2;  // std::thread::hardware_concurrency();
+  const unsigned num_threads = std::thread::hardware_concurrency();
   std::vector<std::thread> threads(num_threads);
 
   auto worker = [&](unsigned thread_id) {
