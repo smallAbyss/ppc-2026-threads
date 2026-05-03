@@ -2,12 +2,62 @@
 
 #include "luzan_e_double_sparse_matrix_mult/common/include/common.hpp"
 // #include "util/include/util.hpp"
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <thread>
 #include <vector>
 
 namespace luzan_e_double_sparse_matrix_mult {
+void LuzanEDoubleSparseMatrixMultStl::AccumulateColumn(const SparseMatrix &a, const SparseMatrix &b, unsigned b_col,
+                                                       std::vector<double> &tmp_col) {
+  unsigned b_rows_start = b.col_index[b_col];
+  unsigned b_rows_end = b.col_index[b_col + 1];
+
+  for (unsigned b_pos = b_rows_start; b_pos < b_rows_end; b_pos++) {
+    double b_val = b.value[b_pos];
+    unsigned b_row = b.row[b_pos];
+    unsigned a_rows_start = a.col_index[b_row];
+    unsigned a_rows_end = a.col_index[b_row + 1];
+
+    for (unsigned a_pos = a_rows_start; a_pos < a_rows_end; a_pos++) {
+      tmp_col[a.row[a_pos]] += a.value[a_pos] * b_val;
+    }
+  }
+}
+
+void LuzanEDoubleSparseMatrixMultStl::CollectNonZeros(const std::vector<double> &tmp_col, unsigned b_col,
+                                                      std::vector<std::vector<double>> &values_per_col,
+                                                      std::vector<std::vector<unsigned>> &rows_per_col) {
+  for (unsigned i = 0; i < static_cast<unsigned>(tmp_col.size()); i++) {
+    if (fabs(tmp_col[i]) > kEPS) {
+      values_per_col[b_col].push_back(tmp_col[i]);
+      rows_per_col[b_col].push_back(i);
+    }
+  }
+}
+
+void LuzanEDoubleSparseMatrixMultStl::ProcessColumn(const SparseMatrix &a, const SparseMatrix &b, unsigned b_col,
+                                                    std::vector<std::vector<double>> &values_per_col,
+                                                    std::vector<std::vector<unsigned>> &rows_per_col) {
+  std::vector<double> tmp_col(a.rows, 0.0);
+  AccumulateColumn(a, b, b_col, tmp_col);
+  CollectNonZeros(tmp_col, b_col, values_per_col, rows_per_col);
+}
+
+void LuzanEDoubleSparseMatrixMultStl::AssembleResult(SparseMatrix &c, unsigned cols,
+                                                     const std::vector<std::vector<double>> &values_per_col,
+                                                     const std::vector<std::vector<unsigned>> &rows_per_col) {
+  c.col_index.push_back(0);
+  for (unsigned j = 0; j < cols; j++) {
+    for (size_t k = 0; k < values_per_col[j].size(); k++) {
+      c.value.push_back(values_per_col[j][k]);
+      c.row.push_back(rows_per_col[j][k]);
+    }
+    c.col_index.push_back(static_cast<unsigned>(c.value.size()));
+  }
+}
+
 SparseMatrix LuzanEDoubleSparseMatrixMultStl::CalcProdSTL(const SparseMatrix &a, const SparseMatrix &b) {
   SparseMatrix c(a.rows, b.cols);
 
@@ -15,58 +65,25 @@ SparseMatrix LuzanEDoubleSparseMatrixMultStl::CalcProdSTL(const SparseMatrix &a,
   std::vector<std::vector<unsigned>> rows_per_col(b.cols);
 
   const unsigned num_threads = std::thread::hardware_concurrency();
-  std::vector<std::thread> threads(num_threads);
+  const unsigned chunk = (b.cols + num_threads - 1) / num_threads;
 
   auto worker = [&](unsigned thread_id) {
-    // Compute this thread's column range
-    unsigned chunk = (b.cols + num_threads - 1) / num_threads;
-    unsigned b_col_start = thread_id * chunk;
-    unsigned b_col_end = std::min(b_col_start + chunk, static_cast<unsigned>(b.cols));
-
-    for (unsigned b_col = b_col_start; b_col < b_col_end; b_col++) {
-      std::vector<double> tmp_col(a.rows, 0.0);
-
-      unsigned b_rows_start = b.col_index[b_col];
-      unsigned b_rows_end = b.col_index[b_col + 1];
-
-      for (unsigned b_pos = b_rows_start; b_pos < b_rows_end; b_pos++) {
-        double b_val = b.value[b_pos];
-        unsigned b_row = b.row[b_pos];
-
-        unsigned a_rows_start = a.col_index[b_row];
-        unsigned a_rows_end = a.col_index[b_row + 1];
-
-        for (unsigned a_pos = a_rows_start; a_pos < a_rows_end; a_pos++) {
-          tmp_col[a.row[a_pos]] += a.value[a_pos] * b_val;
-        }
-      }
-
-      for (unsigned i = 0; i < a.rows; i++) {
-        if (fabs(tmp_col[i]) > kEPS) {
-          values_per_col[b_col].push_back(tmp_col[i]);
-          rows_per_col[b_col].push_back(i);
-        }
-      }
+    unsigned start = thread_id * chunk;
+    unsigned end = std::min(start + chunk, static_cast<unsigned>(b.cols));
+    for (unsigned b_col = start; b_col < end; b_col++) {
+      ProcessColumn(a, b, b_col, values_per_col, rows_per_col);
     }
   };
 
-  for (unsigned t = 0; t < num_threads; t++) {
-    threads[t] = std::thread(worker, t);
+  std::vector<std::thread> threads(num_threads);
+  for (unsigned thrd = 0; thrd < num_threads; thrd++) {
+    threads[thrd] = std::thread(worker, thrd);
+  }
+  for (auto &thrd : threads) {
+    thrd.join();
   }
 
-  for (auto &t : threads) {
-    t.join();
-  }
-
-  c.col_index.push_back(0);
-  for (unsigned j = 0; j < b.cols; j++) {
-    for (size_t k = 0; k < values_per_col[j].size(); k++) {
-      c.value.push_back(values_per_col[j][k]);
-      c.row.push_back(rows_per_col[j][k]);
-    }
-    c.col_index.push_back(static_cast<unsigned>(c.value.size()));
-  }
-
+  AssembleResult(c, b.cols, values_per_col, rows_per_col);
   return c;
 }
 
