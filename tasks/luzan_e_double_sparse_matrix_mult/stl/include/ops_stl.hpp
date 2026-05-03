@@ -12,7 +12,7 @@ class LuzanEDoubleSparseMatrixMultStl : public BaseTask {
   }
   explicit LuzanEDoubleSparseMatrixMultStl(const InType &in);
 
-    static SparseMatrix CalcProdSTL(const SparseMatrix &a, const SparseMatrix &b);
+  static SparseMatrix CalcProdSTL(const SparseMatrix &a, const SparseMatrix &b);
 
  private:
   bool ValidationImpl() override;
