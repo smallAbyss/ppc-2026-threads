@@ -60,7 +60,7 @@ void LuzanEDoubleSparseMatrixMultALL::ComputeLocalCols(const SparseMatrix &a, co
   values_per_col.resize(col_count);
   rows_per_col.resize(col_count);
 
-#pragma omp parallel for schedule(static) default(none) shared(a, b, values_per_col, rows_per_col, col_start, col_count)
+#pragma omp parallel for schedule(static) default(none) shared(a, b, values_per_col, rows_per_col, col_start, col_count, kEPS)
   for (int lc = 0; lc < col_count; lc++) {
     int b_col = col_start + lc;
 
