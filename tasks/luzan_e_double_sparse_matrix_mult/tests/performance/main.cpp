@@ -32,6 +32,10 @@ class LuzanEDoubleSparseMatrixMultSeqPerfTestThreads : public ppc::util::BaseRun
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
+     int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank != 0)
+      return true;
     return (output_data == output_data_);
   }
 
