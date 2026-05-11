@@ -21,10 +21,9 @@ LuzanEDoubleSparseMatrixMultALL::LuzanEDoubleSparseMatrixMultALL(const InType &i
   // GetOutput() = 0;
 }
 
-void LuzanEDoubleSparseMatrixMultALL::BroadcastMatrix(SparseMatrix &m, int root) {
-  // std::cout << "BroadcastMatrix\n";
-  MPI_Bcast(&m.rows, 1, MPI_INT, root, MPI_COMM_WORLD);
-  MPI_Bcast(&m.cols, 1, MPI_INT, root, MPI_COMM_WORLD);
+static void BroadcastMatrix(SparseMatrix &m, int root = 0) {
+  MPI_Bcast(&m.rows, 1, MPI_UNSIGNED, root, MPI_COMM_WORLD);
+  MPI_Bcast(&m.cols, 1, MPI_UNSIGNED, root, MPI_COMM_WORLD);
 
   int nnz = static_cast<int>(m.value.size());
   int ci_size = static_cast<int>(m.col_index.size());
@@ -40,39 +39,29 @@ void LuzanEDoubleSparseMatrixMultALL::BroadcastMatrix(SparseMatrix &m, int root)
   MPI_Bcast(m.col_index.data(), ci_size, MPI_UNSIGNED, root, MPI_COMM_WORLD);
 }
 
-SparseMatrix LuzanEDoubleSparseMatrixMultALL::CalcProdMPIOMP(const SparseMatrix &a_in, const SparseMatrix &b_in) {
-  int rank, nprocs;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+static void BuildColDistribution(int b_cols, int nprocs, std::vector<int> &counts, std::vector<int> &displs) {
+  counts.resize(nprocs);
+  displs.resize(nprocs, 0);
 
-  SparseMatrix a = (rank == 0) ? a_in : SparseMatrix{};
-  SparseMatrix b = (rank == 0) ? b_in : SparseMatrix{};
-  BroadcastMatrix(a, 0);
-  BroadcastMatrix(b, 0);
-
-  int b_cols = b.cols;
-  std::vector<int> counts(nprocs), displs(nprocs, 0);
-  {
-    int base = b_cols / nprocs;
-    int rem = b_cols % nprocs;
-    for (int i = 0; i < nprocs; i++) {
-      counts[i] = base + (i < rem ? 1 : 0);
-    }
-    for (int i = 1; i < nprocs; i++) {
-      displs[i] = displs[i - 1] + counts[i - 1];
-    }
+  int base = b_cols / nprocs;
+  int rem = b_cols % nprocs;
+  for (int i = 0; i < nprocs; i++) {
+    counts[i] = base + (i < rem ? 1 : 0);
   }
+  for (int i = 1; i < nprocs; i++) {
+    displs[i] = displs[i - 1] + counts[i - 1];
+  }
+}
 
-  int my_col_start = displs[rank];
-  int my_col_count = counts[rank];
+static void ComputeLocalCols(const SparseMatrix &a, const SparseMatrix &b, int col_start, int col_count,
+                             std::vector<std::vector<double>> &values_per_col,
+                             std::vector<std::vector<unsigned>> &rows_per_col) {
+  values_per_col.resize(col_count);
+  rows_per_col.resize(col_count);
 
-  std::vector<std::vector<double>> values_per_col(my_col_count);
-  std::vector<std::vector<unsigned>> rows_per_col(my_col_count);
-
-#pragma omp parallel for schedule(static) default(none) \
-    shared(a, b, values_per_col, rows_per_col, my_col_start, my_col_count, kEPS)
-  for (int lc = 0; lc < my_col_count; lc++) {
-    int b_col = my_col_start + lc;
+#pragma omp parallel for schedule(static) default(none) shared(a, b, values_per_col, rows_per_col, col_start, col_count)
+  for (int lc = 0; lc < col_count; lc++) {
+    int b_col = col_start + lc;
 
     std::vector<double> tmp_col(a.rows, 0.0);
 
@@ -91,49 +80,88 @@ SparseMatrix LuzanEDoubleSparseMatrixMultALL::CalcProdMPIOMP(const SparseMatrix 
       }
     }
 
-    for (unsigned int i = 0; i < a.rows; i++) {
+    for (unsigned i = 0; i < a.rows; i++) {
       if (std::fabs(tmp_col[i]) > kEPS) {
         values_per_col[lc].push_back(tmp_col[i]);
-        rows_per_col[lc].push_back(static_cast<unsigned>(i));
+        rows_per_col[lc].push_back(i);
       }
     }
   }
+}
 
-  std::vector<int> col_nnz(my_col_count);
-  std::vector<double> local_vals;
-  std::vector<unsigned> local_rows_flat;
+static void FlattenLocalCols(const std::vector<std::vector<double>> &values_per_col,
+                             const std::vector<std::vector<unsigned>> &rows_per_col, std::vector<int> &col_nnz,
+                             std::vector<double> &flat_vals, std::vector<unsigned> &flat_rows) {
+  int col_count = static_cast<int>(values_per_col.size());
+  col_nnz.resize(col_count);
 
-  for (int lc = 0; lc < my_col_count; lc++) {
+  for (int lc = 0; lc < col_count; lc++) {
     col_nnz[lc] = static_cast<int>(values_per_col[lc].size());
-    local_vals.insert(local_vals.end(), values_per_col[lc].begin(), values_per_col[lc].end());
-    local_rows_flat.insert(local_rows_flat.end(), rows_per_col[lc].begin(), rows_per_col[lc].end());
+    flat_vals.insert(flat_vals.end(), values_per_col[lc].begin(), values_per_col[lc].end());
+    flat_rows.insert(flat_rows.end(), rows_per_col[lc].begin(), rows_per_col[lc].end());
   }
+}
+
+static void GatherFlatArrays(int rank, int nprocs, const std::vector<double> &local_vals,
+                             const std::vector<unsigned> &local_rows, std::vector<double> &global_vals,
+                             std::vector<unsigned> &global_rows) {
   int local_nnz = static_cast<int>(local_vals.size());
 
-  std::vector<int> global_col_nnz(rank == 0 ? b_cols : 0);
-
-  MPI_Gatherv(col_nnz.data(), my_col_count, MPI_INT, global_col_nnz.data(), counts.data(), displs.data(), MPI_INT, 0,
-              MPI_COMM_WORLD);
-
-  std::vector<int> nnz_counts(nprocs, 0), nnz_displs(nprocs, 0);
+  std::vector<int> nnz_counts(nprocs, 0);
+  std::vector<int> nnz_displs(nprocs, 0);
   MPI_Gather(&local_nnz, 1, MPI_INT, nnz_counts.data(), 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-  int total_nnz = 0;
   if (rank == 0) {
     for (int i = 1; i < nprocs; i++) {
       nnz_displs[i] = nnz_displs[i - 1] + nnz_counts[i - 1];
     }
-    total_nnz = nnz_displs[nprocs - 1] + nnz_counts[nprocs - 1];
+    int total_nnz = nnz_displs[nprocs - 1] + nnz_counts[nprocs - 1];
+    global_vals.resize(total_nnz);
+    global_rows.resize(total_nnz);
   }
-
-  std::vector<double> global_vals(rank == 0 ? total_nnz : 0);
-  std::vector<unsigned> global_rows(rank == 0 ? total_nnz : 0);
 
   MPI_Gatherv(local_vals.data(), local_nnz, MPI_DOUBLE, global_vals.data(), nnz_counts.data(), nnz_displs.data(),
               MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  MPI_Gatherv(local_rows_flat.data(), local_nnz, MPI_UNSIGNED, global_rows.data(), nnz_counts.data(), nnz_displs.data(),
+  MPI_Gatherv(local_rows.data(), local_nnz, MPI_UNSIGNED, global_rows.data(), nnz_counts.data(), nnz_displs.data(),
               MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+}
+
+SparseMatrix CalcProdMPIOMP(const SparseMatrix &a_in, const SparseMatrix &b_in) {
+  int rank = 0;
+  int nprocs = 0;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+  MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+  SparseMatrix a = (rank == 0) ? a_in : SparseMatrix{};
+  SparseMatrix b = (rank == 0) ? b_in : SparseMatrix{};
+  BroadcastMatrix(a);
+  BroadcastMatrix(b);
+
+  int b_cols = static_cast<int>(b.cols);
+  std::vector<int> counts;
+  std::vector<int> displs;
+  BuildColDistribution(b_cols, nprocs, counts, displs);
+
+  int my_col_start = displs[rank];
+  int my_col_count = counts[rank];
+
+  std::vector<std::vector<double>> values_per_col;
+  std::vector<std::vector<unsigned>> rows_per_col;
+  ComputeLocalCols(a, b, my_col_start, my_col_count, values_per_col, rows_per_col);
+
+  std::vector<int> col_nnz;
+  std::vector<double> flat_vals;
+  std::vector<unsigned> flat_rows;
+  FlattenLocalCols(values_per_col, rows_per_col, col_nnz, flat_vals, flat_rows);
+
+  std::vector<int> global_col_nnz(rank == 0 ? b_cols : 0);
+  MPI_Gatherv(col_nnz.data(), my_col_count, MPI_INT, global_col_nnz.data(), counts.data(), displs.data(), MPI_INT, 0,
+              MPI_COMM_WORLD);
+
+  std::vector<double> global_vals;
+  std::vector<unsigned> global_rows;
+  GatherFlatArrays(rank, nprocs, flat_vals, flat_rows, global_vals, global_rows);
 
   SparseMatrix c;
   if (rank == 0) {
@@ -142,14 +170,14 @@ SparseMatrix LuzanEDoubleSparseMatrixMultALL::CalcProdMPIOMP(const SparseMatrix 
     c.value = std::move(global_vals);
     c.row = std::move(global_rows);
 
-    c.col_index.reserve(b_cols + 1);
-    c.col_index.push_back(0);
+    c.col_index.reserve(static_cast<unsigned>(b_cols) + 1u);
+    c.col_index.push_back(0u);
     for (int j = 0; j < b_cols; j++) {
-      c.col_index.push_back(c.col_index.back() + global_col_nnz[j]);
+      c.col_index.push_back(c.col_index.back() + static_cast<unsigned>(global_col_nnz[j]));
     }
   }
 
-  return c;  // empty on non-root ranks
+  return c;
 }
 
 bool LuzanEDoubleSparseMatrixMultALL::ValidationImpl() {
