@@ -70,7 +70,7 @@ SparseMatrix LuzanEDoubleSparseMatrixMultALL::CalcProdMPIOMP(const SparseMatrix 
   std::vector<std::vector<unsigned>> rows_per_col(my_col_count);
 
 #pragma omp parallel for schedule(static) default(none) \
-    shared(a, b, values_per_col, rows_per_col, my_col_start, my_col_count)
+    shared(a, b, values_per_col, rows_per_col, my_col_start, my_col_count, kEPS)
   for (int lc = 0; lc < my_col_count; lc++) {
     int b_col = my_col_start + lc;
 
