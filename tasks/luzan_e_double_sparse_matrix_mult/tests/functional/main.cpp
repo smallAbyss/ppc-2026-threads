@@ -8,8 +8,8 @@
 #include <string>
 #include <tuple>
 
+#include "luzan_e_double_sparse_matrix_mult/all/include/ops_all.hpp"
 #include "luzan_e_double_sparse_matrix_mult/common/include/common.hpp"
-#include "luzan_e_double_sparse_matrix_mult/omp/include/ops_omp.hpp"
 #include "luzan_e_double_sparse_matrix_mult/seq/include/ops_seq.hpp"
 #include "util/include/func_test_util.hpp"
 #include "util/include/util.hpp"
@@ -74,7 +74,7 @@ const std::array<TestType, 6> kTestParam = {std::make_tuple("test_1.txt", "01"),
 
 const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<LuzanEDoubleSparseMatrixMultSeq, InType>(
                                                kTestParam, PPC_SETTINGS_luzan_e_double_sparse_matrix_mult),
-                                           ppc::util::AddFuncTask<LuzanEDoubleSparseMatrixMultOMP, InType>(
+                                           ppc::util::AddFuncTask<LuzanEDoubleSparseMatrixMultALL, InType>(
                                                kTestParam, PPC_SETTINGS_luzan_e_double_sparse_matrix_mult));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);

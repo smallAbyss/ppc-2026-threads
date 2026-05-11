@@ -3,8 +3,8 @@
 #include <tuple>
 #include <vector>
 
+#include "luzan_e_double_sparse_matrix_mult/all/include/ops_all.hpp"
 #include "luzan_e_double_sparse_matrix_mult/common/include/common.hpp"
-#include "luzan_e_double_sparse_matrix_mult/omp/include/ops_omp.hpp"
 #include "luzan_e_double_sparse_matrix_mult/seq/include/ops_seq.hpp"
 #include "util/include/perf_test_util.hpp"
 
@@ -47,7 +47,7 @@ TEST_P(LuzanEDoubleSparseMatrixMultSeqPerfTestThreads, RunPerfModes) {
 namespace {
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, LuzanEDoubleSparseMatrixMultSeq, LuzanEDoubleSparseMatrixMultOMP>(
+    ppc::util::MakeAllPerfTasks<InType, LuzanEDoubleSparseMatrixMultSeq, LuzanEDoubleSparseMatrixMultALL>(
         PPC_SETTINGS_luzan_e_double_sparse_matrix_mult);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
