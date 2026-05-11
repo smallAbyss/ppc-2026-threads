@@ -5,12 +5,12 @@
 
 namespace luzan_e_double_sparse_matrix_mult {
 
-class LuzanEDoubleSparseMatrixMultStl : public BaseTask {
+class LuzanEDoubleSparseMatrixMultSTL : public BaseTask {
  public:
   static constexpr ppc::task::TypeOfTask GetStaticTypeOfTask() {
     return ppc::task::TypeOfTask::kSTL;
   }
-  explicit LuzanEDoubleSparseMatrixMultStl(const InType &in);
+  explicit LuzanEDoubleSparseMatrixMultSTL(const InType &in);
 
   static SparseMatrix CalcProdSTL(const SparseMatrix &a, const SparseMatrix &b);
 

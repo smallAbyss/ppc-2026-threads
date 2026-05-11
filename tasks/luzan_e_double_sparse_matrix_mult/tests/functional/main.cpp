@@ -81,7 +81,7 @@ const auto kTestTasksList = std::tuple_cat(ppc::util::AddFuncTask<LuzanEDoubleSp
                                            ppc::util::AddFuncTask<LuzanEDoubleSparseMatrixMultTBB, InType>(
                                                kTestParam, PPC_SETTINGS_luzan_e_double_sparse_matrix_mult),
                                            ppc::util::AddFuncTask<LuzanEDoubleSparseMatrixMultSTL, InType>(
-                                               kTestParam, PPC_SETTINGS_luzan_e_double_sparse_matrix_mult), );
+                                               kTestParam, PPC_SETTINGS_luzan_e_double_sparse_matrix_mult));
 
 const auto kGtestValues = ppc::util::ExpandToValues(kTestTasksList);
 

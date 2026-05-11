@@ -9,7 +9,7 @@
 #include <vector>
 
 namespace luzan_e_double_sparse_matrix_mult {
-void LuzanEDoubleSparseMatrixMultStl::AccumulateColumn(const SparseMatrix &a, const SparseMatrix &b, unsigned b_col,
+void LuzanEDoubleSparseMatrixMultSTL::AccumulateColumn(const SparseMatrix &a, const SparseMatrix &b, unsigned b_col,
                                                        std::vector<double> &tmp_col) {
   unsigned b_rows_start = b.col_index[b_col];
   unsigned b_rows_end = b.col_index[b_col + 1];
@@ -26,7 +26,7 @@ void LuzanEDoubleSparseMatrixMultStl::AccumulateColumn(const SparseMatrix &a, co
   }
 }
 
-void LuzanEDoubleSparseMatrixMultStl::CollectNonZeros(const std::vector<double> &tmp_col, unsigned b_col,
+void LuzanEDoubleSparseMatrixMultSTL::CollectNonZeros(const std::vector<double> &tmp_col, unsigned b_col,
                                                       std::vector<std::vector<double>> &values_per_col,
                                                       std::vector<std::vector<unsigned>> &rows_per_col) {
   for (unsigned i = 0; i < static_cast<unsigned>(tmp_col.size()); i++) {
@@ -37,7 +37,7 @@ void LuzanEDoubleSparseMatrixMultStl::CollectNonZeros(const std::vector<double> 
   }
 }
 
-void LuzanEDoubleSparseMatrixMultStl::ProcessColumn(const SparseMatrix &a, const SparseMatrix &b, unsigned b_col,
+void LuzanEDoubleSparseMatrixMultSTL::ProcessColumn(const SparseMatrix &a, const SparseMatrix &b, unsigned b_col,
                                                     std::vector<std::vector<double>> &values_per_col,
                                                     std::vector<std::vector<unsigned>> &rows_per_col) {
   std::vector<double> tmp_col(a.rows, 0.0);
@@ -45,7 +45,7 @@ void LuzanEDoubleSparseMatrixMultStl::ProcessColumn(const SparseMatrix &a, const
   CollectNonZeros(tmp_col, b_col, values_per_col, rows_per_col);
 }
 
-void LuzanEDoubleSparseMatrixMultStl::AssembleResult(SparseMatrix &c, unsigned cols,
+void LuzanEDoubleSparseMatrixMultSTL::AssembleResult(SparseMatrix &c, unsigned cols,
                                                      const std::vector<std::vector<double>> &values_per_col,
                                                      const std::vector<std::vector<unsigned>> &rows_per_col) {
   c.col_index.push_back(0);
@@ -58,7 +58,7 @@ void LuzanEDoubleSparseMatrixMultStl::AssembleResult(SparseMatrix &c, unsigned c
   }
 }
 
-SparseMatrix LuzanEDoubleSparseMatrixMultStl::CalcProdSTL(const SparseMatrix &a, const SparseMatrix &b) {
+SparseMatrix LuzanEDoubleSparseMatrixMultSTL::CalcProdSTL(const SparseMatrix &a, const SparseMatrix &b) {
   SparseMatrix c(a.rows, b.cols);
 
   std::vector<std::vector<double>> values_per_col(b.cols);
@@ -87,23 +87,23 @@ SparseMatrix LuzanEDoubleSparseMatrixMultStl::CalcProdSTL(const SparseMatrix &a,
   return c;
 }
 
-LuzanEDoubleSparseMatrixMultStl::LuzanEDoubleSparseMatrixMultStl(const InType &in) {
+LuzanEDoubleSparseMatrixMultSTL::LuzanEDoubleSparseMatrixMultSTL(const InType &in) {
   SetTypeOfTask(GetStaticTypeOfTask());
   GetInput() = in;
   // GetOutput() = 0;
 }
 
-bool LuzanEDoubleSparseMatrixMultStl::ValidationImpl() {
+bool LuzanEDoubleSparseMatrixMultSTL::ValidationImpl() {
   const auto &a = std::get<0>(GetInput());
   const auto &b = std::get<1>(GetInput());
   return a.GetCols() == b.GetRows() && a.GetCols() != 0 && a.GetRows() != 0 && b.GetCols() != 0;
 }
 
-bool LuzanEDoubleSparseMatrixMultStl::PreProcessingImpl() {
+bool LuzanEDoubleSparseMatrixMultSTL::PreProcessingImpl() {
   return true;
 }
 
-bool LuzanEDoubleSparseMatrixMultStl::RunImpl() {
+bool LuzanEDoubleSparseMatrixMultSTL::RunImpl() {
   const auto &a = std::get<0>(GetInput());
   const auto &b = std::get<1>(GetInput());
 
@@ -111,7 +111,7 @@ bool LuzanEDoubleSparseMatrixMultStl::RunImpl() {
   return true;
 }
 
-bool LuzanEDoubleSparseMatrixMultStl::PostProcessingImpl() {
+bool LuzanEDoubleSparseMatrixMultSTL::PostProcessingImpl() {
   return true;
 }
 
