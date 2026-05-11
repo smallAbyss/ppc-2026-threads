@@ -21,7 +21,7 @@ LuzanEDoubleSparseMatrixMultALL::LuzanEDoubleSparseMatrixMultALL(const InType &i
   // GetOutput() = 0;
 }
 
-static void BroadcastMatrix(SparseMatrix &m, int root = 0) {
+void LuzanEDoubleSparseMatrixMultALL::BroadcastMatrix(SparseMatrix &m, int root) {
   MPI_Bcast(&m.rows, 1, MPI_UNSIGNED, root, MPI_COMM_WORLD);
   MPI_Bcast(&m.cols, 1, MPI_UNSIGNED, root, MPI_COMM_WORLD);
 
@@ -39,7 +39,8 @@ static void BroadcastMatrix(SparseMatrix &m, int root = 0) {
   MPI_Bcast(m.col_index.data(), ci_size, MPI_UNSIGNED, root, MPI_COMM_WORLD);
 }
 
-static void BuildColDistribution(int b_cols, int nprocs, std::vector<int> &counts, std::vector<int> &displs) {
+void LuzanEDoubleSparseMatrixMultALL::BuildColDistribution(int b_cols, int nprocs, std::vector<int> &counts,
+                                                           std::vector<int> &displs) {
   counts.resize(nprocs);
   displs.resize(nprocs, 0);
 
@@ -53,9 +54,9 @@ static void BuildColDistribution(int b_cols, int nprocs, std::vector<int> &count
   }
 }
 
-static void ComputeLocalCols(const SparseMatrix &a, const SparseMatrix &b, int col_start, int col_count,
-                             std::vector<std::vector<double>> &values_per_col,
-                             std::vector<std::vector<unsigned>> &rows_per_col) {
+void LuzanEDoubleSparseMatrixMultALL::ComputeLocalCols(const SparseMatrix &a, const SparseMatrix &b, int col_start,
+                                                       int col_count, std::vector<std::vector<double>> &values_per_col,
+                                                       std::vector<std::vector<unsigned>> &rows_per_col) {
   values_per_col.resize(col_count);
   rows_per_col.resize(col_count);
 
@@ -89,9 +90,10 @@ static void ComputeLocalCols(const SparseMatrix &a, const SparseMatrix &b, int c
   }
 }
 
-static void FlattenLocalCols(const std::vector<std::vector<double>> &values_per_col,
-                             const std::vector<std::vector<unsigned>> &rows_per_col, std::vector<int> &col_nnz,
-                             std::vector<double> &flat_vals, std::vector<unsigned> &flat_rows) {
+void LuzanEDoubleSparseMatrixMultALL::FlattenLocalCols(const std::vector<std::vector<double>> &values_per_col,
+                                                       const std::vector<std::vector<unsigned>> &rows_per_col,
+                                                       std::vector<int> &col_nnz, std::vector<double> &flat_vals,
+                                                       std::vector<unsigned> &flat_rows) {
   int col_count = static_cast<int>(values_per_col.size());
   col_nnz.resize(col_count);
 
@@ -102,9 +104,10 @@ static void FlattenLocalCols(const std::vector<std::vector<double>> &values_per_
   }
 }
 
-static void GatherFlatArrays(int rank, int nprocs, const std::vector<double> &local_vals,
-                             const std::vector<unsigned> &local_rows, std::vector<double> &global_vals,
-                             std::vector<unsigned> &global_rows) {
+void LuzanEDoubleSparseMatrixMultALL::GatherFlatArrays(int rank, int nprocs, const std::vector<double> &local_vals,
+                                                       const std::vector<unsigned> &local_rows,
+                                                       std::vector<double> &global_vals,
+                                                       std::vector<unsigned> &global_rows) {
   int local_nnz = static_cast<int>(local_vals.size());
 
   std::vector<int> nnz_counts(nprocs, 0);
@@ -127,7 +130,7 @@ static void GatherFlatArrays(int rank, int nprocs, const std::vector<double> &lo
               MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 }
 
-SparseMatrix CalcProdMPIOMP(const SparseMatrix &a_in, const SparseMatrix &b_in) {
+SparseMatrix LuzanEDoubleSparseMatrixMultALL::CalcProdMPIOMP(const SparseMatrix &a_in, const SparseMatrix &b_in) {
   int rank = 0;
   int nprocs = 0;
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -135,8 +138,8 @@ SparseMatrix CalcProdMPIOMP(const SparseMatrix &a_in, const SparseMatrix &b_in) 
 
   SparseMatrix a = (rank == 0) ? a_in : SparseMatrix{};
   SparseMatrix b = (rank == 0) ? b_in : SparseMatrix{};
-  BroadcastMatrix(a);
-  BroadcastMatrix(b);
+  BroadcastMatrix(a, 0);
+  BroadcastMatrix(b, 0);
 
   int b_cols = static_cast<int>(b.cols);
   std::vector<int> counts;
