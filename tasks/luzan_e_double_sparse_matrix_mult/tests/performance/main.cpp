@@ -2,11 +2,14 @@
 
 #include <tuple>
 #include <vector>
+#include <mpi.h>
 
 #include "luzan_e_double_sparse_matrix_mult/common/include/common.hpp"
 #include "luzan_e_double_sparse_matrix_mult/omp/include/ops_omp.hpp"
 #include "luzan_e_double_sparse_matrix_mult/seq/include/ops_seq.hpp"
 #include "util/include/perf_test_util.hpp"
+#include "luzan_e_double_sparse_matrix_mult/all/include/ops_all.hpp"
+
 
 namespace luzan_e_double_sparse_matrix_mult {
 
@@ -32,6 +35,11 @@ class LuzanEDoubleSparseMatrixMultSeqPerfTestThreads : public ppc::util::BaseRun
   }
 
   bool CheckTestOutputData(OutType &output_data) final {
+    int rank = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    if (rank != 0)
+      return true;
+    return (output_data == output_data_);
     return (output_data == output_data_);
   }
 
@@ -47,7 +55,7 @@ TEST_P(LuzanEDoubleSparseMatrixMultSeqPerfTestThreads, RunPerfModes) {
 namespace {
 
 const auto kAllPerfTasks =
-    ppc::util::MakeAllPerfTasks<InType, LuzanEDoubleSparseMatrixMultSeq, LuzanEDoubleSparseMatrixMultOMP>(
+    ppc::util::MakeAllPerfTasks<InType, LuzanEDoubleSparseMatrixMultSeq, LuzanEDoubleSparseMatrixMultALL>(
         PPC_SETTINGS_luzan_e_double_sparse_matrix_mult);
 
 const auto kGtestValues = ppc::util::TupleToGTestValues(kAllPerfTasks);
