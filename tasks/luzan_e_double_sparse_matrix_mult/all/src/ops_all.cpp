@@ -3,11 +3,8 @@
 #include <mpi.h>
 #include <omp.h>
 
-#include <algorithm>
 #include <cmath>
-#include <cstddef>
-#include <iostream>
-#include <numeric>
+#include <utility>
 #include <vector>
 
 #include "luzan_e_double_sparse_matrix_mult/common/include/common.hpp"
@@ -174,8 +171,8 @@ SparseMatrix LuzanEDoubleSparseMatrixMultALL::CalcProdMPIOMP(const SparseMatrix 
     c.value = std::move(global_vals);
     c.row = std::move(global_rows);
 
-    c.col_index.reserve(static_cast<unsigned>(b_cols) + 1u);
-    c.col_index.push_back(0u);
+    c.col_index.reserve(static_cast<unsigned>(b_cols) + 1);
+    c.col_index.push_back(0);
     for (int j = 0; j < b_cols; j++) {
       c.col_index.push_back(c.col_index.back() + static_cast<unsigned>(global_col_nnz[j]));
     }
