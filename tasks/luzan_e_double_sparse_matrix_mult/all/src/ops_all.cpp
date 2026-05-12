@@ -156,7 +156,7 @@ SparseMatrix LuzanEDoubleSparseMatrixMultALL::CalcProdMPIOMP(const SparseMatrix 
   std::vector<unsigned> flat_rows;
   FlattenLocalCols(values_per_col, rows_per_col, col_nnz, flat_vals, flat_rows);
 
-  std::vector<int> global_col_nnz(rank == 0 ? b_cols : 0);
+  std::vector<int> global_col_nnz(rank == 0 ? b_cols : 1);
   MPI_Gatherv(col_nnz.data(), my_col_count, MPI_INT, global_col_nnz.data(), counts.data(), displs.data(), MPI_INT, 0,
               MPI_COMM_WORLD);
 
