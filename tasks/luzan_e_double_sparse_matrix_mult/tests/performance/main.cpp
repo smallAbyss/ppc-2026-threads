@@ -11,6 +11,7 @@
 #include "luzan_e_double_sparse_matrix_mult/stl/include/ops_stl.hpp"
 #include "luzan_e_double_sparse_matrix_mult/tbb/include/ops_tbb.hpp"
 #include "util/include/perf_test_util.hpp"
+#include "util/include/util.hpp"
 
 namespace luzan_e_double_sparse_matrix_mult {
 
