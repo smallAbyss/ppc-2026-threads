@@ -8,6 +8,7 @@
 #include "luzan_e_double_sparse_matrix_mult/common/include/common.hpp"
 #include "luzan_e_double_sparse_matrix_mult/seq/include/ops_seq.hpp"
 #include "util/include/perf_test_util.hpp"
+#include "util/include/util.hpp
 
 namespace luzan_e_double_sparse_matrix_mult {
 
